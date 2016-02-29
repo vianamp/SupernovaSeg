@@ -1,7 +1,16 @@
 //
-//          Matheus Viana - vianamp@gmail.com
+// Matheus Viana - vianamp@gmail.com
+//
+// Auxiliar Fiji macro for generating the data structure that
+// will be used by SupernovaSeg and MitoGraph.
+// SupernovaSeg: Segment the 3D cell contour and crop the
+//               mitochondria volume that will be analyzed
+//               in MitoGraph
+// MitoGraph:    Quantitative analysis of mitochondria images
+//               and generation of graph representation
 //
 // ===========================================================
+//
 //MainDir
 //  |
 //  |---- mito  (contains images of mito signal)
@@ -25,6 +34,7 @@
 //  |      |------ file1.centers
 //  |              file2.centers
 //  |              ...
+//
 // ===========================================================
 
 // Should be the folder "surface" as described above
