@@ -56,17 +56,19 @@
 
             void Save(const char FileName[], const int _id);
 
-            void SaveRays(const char FileName[], const int _id);
-
             void ApplyLimits(const double r1, const bool force);
 
-            void SaveProjection(const char FileName[]);
+            void Segmentation();
 
-            void Segmentation(const int _id);
+            void ClipImageData(const char MitoFileName[], vtkImageData *Image, vtkImageData *ClipImage, const int _id);
 
-            void ClipImageData(const char MitoFileName[], vtkImageData *Image, vtkImageData *ClipImage);
+            void ScalePolyData(double _dxy, double _dz);
 
             void AjustCoordinates(int Ly, double _dxy, double _dz);
+
+            void EstimateImageMeanAndStd(vtkImageData *Image, double *_mean, double *_std);
+
+            void GetXYZFromRay(const int ray, double *x, double *y, double *z);
 
             _Supernova() {
                 _rmax = 55;
