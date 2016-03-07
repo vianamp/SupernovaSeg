@@ -25,6 +25,9 @@
         this -> Clear();
         std::string line;
         std::ifstream infile(CentersFileName.c_str());
+        #ifdef DEBUG
+            printf("Reading .centers file...\n");
+        #endif
         for( std::string line; getline( infile, line ); ) {
             if ( line == "[RootFolder]" ) {
                 getline(infile,line);

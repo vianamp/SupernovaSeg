@@ -4,6 +4,13 @@
     int ssdy_sort[26] = { 0, 0,-1, 0, 1, 0, 0,-1, 0, 1,-1,-1, 1, 1, 0,-1, 0, 1, -1,-1, 1, 1,-1,-1, 1, 1};
     int ssdz_sort[26] = {-1, 0, 0, 0, 0, 1,-1,-1,-1,-1, 0, 0, 0, 0, 1, 1, 1, 1, -1,-1,-1,-1, 1, 1, 1, 1};
 
+    void _Supernova::GetXYZFromRay(const int ray, double *x, double *y, double *z) {
+        double t = 2.0 * 3.1415*(1.0*ray)/_nrays;
+        *z = 3.1415 - t;
+        *x = cos(_freq*t);
+        *y = sin(_freq*t);
+    }
+
     void _Supernova::Initialize() {
 
         int m, p;
@@ -15,10 +22,7 @@
         vtkIdType id = 0;
         for (m = 0; m < _nrays; m++) {
 
-            t = 2.0 * 3.1415*(1.0*m)/_nrays;
-            z = t - 3.1415;
-            x = cos(_freq*t);
-            y = sin(_freq*t);
+            GetXYZFromRay(m,&x,&y,&z);
 
             n = sqrt(x*x+y*y+z*z);
 
@@ -61,25 +65,38 @@
             if ( (i >= 0 && i < Dim[0]) && (j >= 0 && j < Dim[1]) && (k >= 0 && k < Dim[2]) ) {
                 v = Image -> GetScalarComponentAsDouble(i,j,k,0);
             }
+            if (k<5) v = 0; // THIS LINE IS CRITICAL FOR GOOD CELL SHAPE IN Z
+                            // MIGHT HAVE TO DO A AUTOMATIC DETECTION OF 5
             Intensities -> SetTuple1(id,v);
         }
 
         Rays -> GetPointData() -> SetScalars(Intensities);
 
+        #ifdef DEBUG
+            vtkSmartPointer<vtkPolyDataWriter> Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
+            Writer -> SetFileTypeToBinary();
+            Writer -> SetInputData(Rays);
+            Writer -> SetFileName("Rays.vtk");
+            Writer -> Write();
+            printf("Rays saved in Supernove folder under the name Rays.vtk!\n");
+        #endif
+
     }
 
     void _Supernova::ApplyLimits(const double r1, bool force) {
-        double v;
         vtkIdType r, i, id;
+        double v, x, y, z, w;
         vtkSmartPointer<vtkDataArray> Scalars = Rays -> GetPointData() -> GetScalars();
         for (r = 0; r < _nrays; r++) {
+            GetXYZFromRay(r,&x,&y,&z);
+            w = r1*(1.0 - 2.0/3.0*fabs(z/sqrt(x*x+y*y+z*z)));
             for (i = 0; i < _rmax; i++) {
                 id = i + r * _rmax;
                 if (force) {
-                    if (i == (int)r1) Scalars -> SetTuple1(id,65535);
+                    if (i == (int)w) Scalars -> SetTuple1(id,65535);
                 } else {
                     v = Scalars -> GetTuple1(id);
-                    v = (i<r1)?v:0.0;
+                    v = (i<w)?v:0.0;
                     Scalars -> SetTuple1(id,v);
                 }
             }
@@ -96,53 +113,7 @@
 
     }
 
-    void _Supernova::SaveRays(const char FileName[], const int _id) {
-
-        vtkSmartPointer<vtkPolyDataWriter> WriterR =  vtkSmartPointer<vtkPolyDataWriter>::New();
-        WriterR -> SetFileTypeToBinary();
-        WriterR -> SetInputData(Rays);
-        WriterR -> SetFileName(FileName);
-        WriterR -> Write();
-
-    }
-
-
-    void _Supernova::SaveProjection(const char FileName[]) {
-
-       #ifdef DEBUG
-            printf("Saving Max projection...\n");
-        #endif
-
-        vtkSmartPointer<vtkImageData> Proj = vtkSmartPointer<vtkImageData>::New();
-        Proj -> SetDimensions(_nrays,_rmax,1);
-        
-        vtkSmartPointer<vtkUnsignedShortArray> ProjArray = vtkSmartPointer<vtkUnsignedShortArray>::New();
-        ProjArray -> SetNumberOfComponents(1);
-        ProjArray -> SetNumberOfTuples(Rays->GetNumberOfPoints());
-
-        double v;
-        for (int i = 0; i < _nrays; i++) {
-            for (int j = 0; j < _rmax; j++) {
-                v = Rays -> GetPointData() -> GetScalars() -> GetTuple1(j+i*_rmax);
-                ProjArray -> SetTuple1(Proj->FindPoint(i,j,0),(unsigned short)v);
-            }
-        }
-        ProjArray -> Modified();
-        Proj -> GetPointData() -> SetScalars(ProjArray);
-
-        vtkSmartPointer<vtkTIFFWriter> TIFFWriter = vtkSmartPointer<vtkTIFFWriter>::New();
-        TIFFWriter -> SetFileName(FileName);
-        TIFFWriter -> SetFileDimensionality(2);
-        TIFFWriter -> SetInputData(Proj);
-        TIFFWriter -> Write();
-
-        #ifdef DEBUG
-            printf("File Saved!\n");
-        #endif
-
-    }
-
-    void _Supernova::Segmentation(const int _id) {
+    void _Supernova::Segmentation() {
 
        #ifdef DEBUG
             printf("Saving Max projection...\n");
@@ -232,12 +203,14 @@
                 jo += j;
             }
         }
+        int delta;
         jo /= ext;
         Intensities -> FillComponent(0,0);
         do {
             Path.push_back(std::make_pair(i,jo));
             Intensities -> SetTuple1(jo+i*_rmax,65535);
-            jo += Step -> GetTuple1(jo+i*_rmax) - 1;
+            delta = Step -> GetTuple1(jo+i*_rmax) - 1;
+            jo += delta;//(jo+delta>=0) ? delta : 0;
             i--;
         } while (i >= 0);
 
@@ -261,10 +234,7 @@
         do {
             m = Path.back().first;
             p = Path.back().second;
-            t = 2.0 * 3.1415*(1.0*m)/_nrays;
-            z = t - 3.1415;
-            x = cos(_freq*t);
-            y = sin(_freq*t);
+            GetXYZFromRay(m,&x,&y,&z);            
             n = sqrt(x*x+y*y+z*z);
             Points -> InsertNextPoint(_xo + p * (x / n),_yo + p * (y / n),_zo + p * (z / n));
             Path.pop_back();
@@ -273,8 +243,10 @@
         Peaks = vtkPolyData::New();
         Peaks -> SetPoints(Points);
 
+        vtkSmartPointer<vtkPolyDataWriter> Writer;
+
         #ifdef DEBUG
-            vtkSmartPointer<vtkPolyDataWriter> Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
+            Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
             Writer -> SetFileTypeToBinary();
             Writer -> SetInputData(Peaks);
             Writer -> SetFileName("Peaks.vtk");
@@ -292,22 +264,17 @@
         ContourFilter -> SetValue(0, 0.0);
         ContourFilter -> Update();
 
-        vtkSmartPointer<vtkPolyDataConnectivityFilter> Connectivity = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
-        Connectivity -> SetInputConnection(ContourFilter->GetOutputPort());
-        Connectivity -> SetExtractionModeToLargestRegion();
-        Connectivity -> Update();
-
         Surface = vtkPolyData::New();
-        Surface -> DeepCopy(Connectivity->GetOutput());
+        Surface -> DeepCopy(ContourFilter->GetOutput());
 
-        vtkSmartPointer<vtkIntArray> ID = vtkSmartPointer<vtkIntArray>::New();
-        ID -> SetName("ID");
-        ID -> SetNumberOfTuples(Surface->GetNumberOfPoints());
-        ID -> SetNumberOfComponents(1);
-        ID -> FillComponent(0,_id);
-
-        Surface -> GetPointData() -> SetScalars(ID);
-        Surface -> Modified();
+        #ifdef DEBUG
+            Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
+            Writer -> SetFileTypeToBinary();
+            Writer -> SetInputData(Surface);
+            Writer -> SetFileName("Surface.vtk");
+            Writer -> Write();
+            printf("Surface saved in Supernove folder under the name Surface.vtk!\n");
+        #endif
 
     }
 
@@ -417,14 +384,30 @@
         }
         ImageData -> GetPointData() -> GetScalars() -> Modified();
 
-        //#ifdef DEBUG
+        #ifdef DEBUG
             printf("\tNumber of filled holes: %ld\n",(long int)CSz->GetNumberOfTuples()-1);
-        //#endif
+        #endif
 
     }
 
+    void _Supernova::EstimateImageMeanAndStd(vtkImageData *Image, double *_mean, double *_std) {
+        std::vector<unsigned short> v;
+        for (vtkIdType id = Image->GetNumberOfPoints(); id--;) {
+            v.push_back(Image->GetPointData()->GetScalars()->GetTuple1(id));
+        }
+        double sum = std::accumulate(v.begin(), v.end(), 0.0);
+        double mean = sum / v.size();
+        std::vector<double> diff(v.size());
+        std::transform(v.begin(), v.end(), diff.begin(),std::bind2nd(std::minus<double>(), mean));
+        double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+        double stdev = std::sqrt(sq_sum / v.size());
+        *_mean = mean;
+        *_std = stdev;
+        printf("\t <I> = %1.3f\n",mean);
+        printf("\t sd_I = %1.3f\n",stdev);
+    }
 
-    void _Supernova::ClipImageData(const char MitoFileName[], vtkImageData *Image, vtkImageData *ClipImage) {
+    void _Supernova::ClipImageData(const char MitoFileName[], vtkImageData *Image, vtkImageData *ClipImage, const int _id) {
 
         #ifdef DEBUG
             printf("Clipping 3D Volume...\n");
@@ -435,67 +418,80 @@
         Filter -> SetSurfaceData(Surface);
         Filter -> Update();
 
-        vtkSmartPointer<vtkImageData> BinaryImage = (vtkImageData*) Filter -> GetOutput();
-
         double range[2];
-        BinaryImage -> GetScalarRange(range);
+        Filter -> GetOutput() -> GetScalarRange(range);
 
         printf("Range = [%1.3f,%1.3f]\n",range[0],range[1]);
 
         vtkSmartPointer<vtkImageShiftScale> Cast = vtkSmartPointer<vtkImageShiftScale>::New();
-        Cast -> SetInputData(BinaryImage);
+        Cast -> SetInputData(Filter->GetOutput());
         Cast -> SetShift(0.0);
-        Cast -> SetScale(255.0/range[1]);
-        Cast -> SetOutputScalarTypeToUnsignedChar();
+        Cast -> SetScale(65535.0/range[1]);
+        Cast -> SetOutputScalarTypeToUnsignedShort();
         Cast -> Update();
 
-        BinaryImage = Cast -> GetOutput();
+        vtkSmartPointer<vtkImageData> BinaryImage = Cast -> GetOutput();
 
-        FillHoles(BinaryImage);
+        unsigned short *qPixel, *pPixel = static_cast<unsigned short*>(BinaryImage->GetScalarPointer());
+        for( vtkIdType id = BinaryImage->GetNumberOfPoints(); id--; )
+            if (pPixel[id]>0) pPixel[id] = 65535;
 
-        vtkSmartPointer<vtkImageDilateErode3D> dilateErode = vtkSmartPointer<vtkImageDilateErode3D>::New();
-        dilateErode -> SetInputData(BinaryImage);
-        dilateErode -> SetDilateValue(255);
-        dilateErode -> SetErodeValue(0);
-        dilateErode -> SetKernelSize(7,7,3);
-        dilateErode -> Update();
+        vtkSmartPointer<vtkImageGaussianSmooth> Gauss = vtkSmartPointer<vtkImageGaussianSmooth>::New();
+        Gauss -> SetInputData(BinaryImage);
+        Gauss -> SetStandardDeviations(3,3,2);
+        Gauss -> SetRadiusFactors(3,3,2);
+        Gauss -> Update();
 
-        BinaryImage = dilateErode -> GetOutput();
+        vtkSmartPointer<vtkImageData> SmoothImage = vtkSmartPointer<vtkImageData>::New();
+        SmoothImage -> DeepCopy(Gauss->GetOutput());
+
+        int i, j, *Dim = BinaryImage -> GetDimensions();
+        for (i = 0; i < Dim[0]; i++) {
+            for (j = 0; j < Dim[1]; j++) {
+                SmoothImage -> SetScalarComponentFromDouble(i,j,0,0,0);
+                SmoothImage -> SetScalarComponentFromDouble(i,j,Dim[2]-1,0,0);
+            }
+        }
+
+        double threshold = 0.5*65535;
+        vtkSmartPointer<vtkContourFilter> ContourFilter = vtkSmartPointer<vtkContourFilter>::New();
+        ContourFilter -> SetInputData(SmoothImage);
+        ContourFilter -> SetValue(0,threshold);
+        ContourFilter -> Update();
+
+        Surface -> DeepCopy(ContourFilter->GetOutput());
+
+        vtkSmartPointer<vtkIntArray> ID = vtkSmartPointer<vtkIntArray>::New();
+        ID -> SetName("ID");
+        ID -> SetNumberOfTuples(Surface->GetNumberOfPoints());
+        ID -> SetNumberOfComponents(1);
+        ID -> FillComponent(0,_id);
+
+        Surface -> GetPointData() -> SetScalars(ID);
+        Surface -> Modified();
 
         vtkSmartPointer<vtkTIFFReader> Reader = vtkSmartPointer<vtkTIFFReader>::New();
         Reader -> SetFileName(MitoFileName);
-        Reader -> SetOrientationType(1);
+        Reader -> SetOrientationType(TIFF_ORIENTATION_READER);
         Reader -> Update();
 
         vtkSmartPointer<vtkImageData> Mito = Reader -> GetOutput();
 
-        std::vector<unsigned short> v;
-        for (vtkIdType id = Mito->GetNumberOfPoints(); id--;) {
-            v.push_back(Mito->GetPointData()->GetScalars()->GetTuple1(id));
-        }
-
-        double sum = std::accumulate(v.begin(), v.end(), 0.0);
-        double mean = sum / v.size();
-        std::vector<double> diff(v.size());
-        std::transform(v.begin(), v.end(), diff.begin(),std::bind2nd(std::minus<double>(), mean));
-        double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
-        double stdev = std::sqrt(sq_sum / v.size());
-
-        printf("\t <I> = %1.3f\n",mean);
-        printf("\t sd_I = %1.3f\n",stdev);
+        double mean, stdev;
+        EstimateImageMeanAndStd(Mito,&mean,&stdev);
 
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::normal_distribution<> d(mean,0.5*stdev);
+        std::normal_distribution<> NormalDist(mean,0.5*stdev);
 
         int voi[6];
         double r[3];
         voi[0] = voi[2] = voi[4] = 1E3;
         voi[1] = voi[3] = voi[5] = 0;
-        for (vtkIdType id = Mito->GetNumberOfPoints(); id--;) {
-            if (!BinaryImage->GetPointData()->GetScalars()->GetTuple1(id)) {
-                Mito->GetPointData()->GetScalars()->SetTuple1(id,(unsigned short)d(gen));
-            } else {
+        qPixel = static_cast<unsigned short*>(Mito->GetScalarPointer());
+        pPixel = static_cast<unsigned short*>(SmoothImage->GetScalarPointer());
+        for( vtkIdType id = SmoothImage->GetNumberOfPoints(); id--; ) {
+            if (pPixel[id]>threshold) {
                 BinaryImage -> GetPoint(id,r);
                 voi[0] = ((int)r[0] < voi[0]) ? (int)r[0] : voi[0];
                 voi[1] = ((int)r[0] > voi[1]) ? (int)r[0] : voi[1];
@@ -503,10 +499,10 @@
                 voi[3] = ((int)r[1] > voi[3]) ? (int)r[1] : voi[3];
                 voi[4] = ((int)r[2] < voi[4]) ? (int)r[2] : voi[4];
                 voi[5] = ((int)r[2] > voi[5]) ? (int)r[2] : voi[5];
+            } else {
+                qPixel[id] = (unsigned short)NormalDist(gen);
             }
         }
-
-        int *Dim = BinaryImage -> GetDimensions();
 
         voi[0] -= (voi[0]-5>0) ? 5 : 0;
         voi[2] -= (voi[2]-5>0) ? 5 : 0;
@@ -585,4 +581,26 @@
 
         Surface -> DeepCopy(Normals->GetOutput());
         Surface -> Modified();
+    }
+
+    void _Supernova::ScalePolyData(double _dxy, double _dz) {
+        double r[3];
+        vtkSmartPointer<vtkPoints> P = Rays -> GetPoints();
+        for (vtkIdType i = 0; i < P->GetNumberOfPoints(); i++) {
+            P -> GetPoint(i,r);
+            r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
+            P -> SetPoint(i,r);
+        }
+        P = Peaks -> GetPoints();
+        for (vtkIdType i = 0; i < P->GetNumberOfPoints(); i++) {
+            P -> GetPoint(i,r);
+            r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
+            P -> SetPoint(i,r);
+        }
+        P = Surface -> GetPoints();
+        for (vtkIdType i = 0; i < P->GetNumberOfPoints(); i++) {
+            P -> GetPoint(i,r);
+            r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
+            P -> SetPoint(i,r);
+        }
     }

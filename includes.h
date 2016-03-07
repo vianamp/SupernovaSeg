@@ -4,6 +4,7 @@
 #include <random>
 #include <cstdlib>
 #include <cstring>
+#include <dirent.h>
 #include <algorithm>
 
 #include <vtkMath.h>
@@ -59,5 +60,7 @@
 
 #include "_database.h"
 #include "_Supernova.h"
+
+#define TIFF_ORIENTATION_READER 1
 
 #define DEBUG

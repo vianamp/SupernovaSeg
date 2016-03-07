@@ -1,13 +1,15 @@
+// ===========================================================
 //
-// Matheus Viana - vianamp@gmail.com
+// Matheus Viana - vianamp@gmail.com, 3.3.2016
 //
 // Auxiliar Fiji macro for generating the data structure that
 // will be used by SupernovaSeg and MitoGraph.
+//
 // SupernovaSeg: Segment the 3D cell contour and crop the
-//               mitochondria volume that will be analyzed
+// ------------- mitochondria volume that will be analyzed
 //               in MitoGraph
 // MitoGraph:    Quantitative analysis of mitochondria images
-//               and generation of graph representation
+// ----------    and generation of graph representation
 //
 // ===========================================================
 //
@@ -38,6 +40,7 @@
 // ===========================================================
 
 // Should be the folder "surface" as described above
+// -------------------------------------------------
 
 _RootFolder = getDirectory("Choose a Directory");
 
@@ -50,14 +53,17 @@ _dxy = 0.056;
 _dz = 0.2;
 
 // A folder called "MitoGraph" will be creasted
+// --------------------------------------------
 
 File.makeDirectory(_RootFolder+"/MitoGraph");
 
 // List of files "surface"
+// -----------------------
 
 _FileList = getFileList(_SurfaceFolder);
 
 // Batch mode on
+// -------------
 
 setBatchMode(true);
 
@@ -65,23 +71,28 @@ i = 0;
 while (i < _FileList.length)  {
 
 	// Only TIFF files
+	// ---------------
 
 	if ( endsWith(_FileList[i],".tif") ) {
 
 		// Image name
+		// ----------
 
 		_ImageName = split(_FileList[i],".");
 		_ImageName = _ImageName[0];
 
 		// Load image
-		
+		// ----------
+
 		open(_SurfaceFolder+_ImageName+".tif");
 
 		// Create coordinates file
-		
+		// -----------------------
+
 		f = File.open(_RootFolder+"MitoGraph/"+_ImageName+".centers");
 
 		// Write header
+		// ------------
 
 		print(f, "[RootFolder]");
 		print(f, _RootFolder+"/MitoGraph/");
@@ -98,12 +109,14 @@ while (i < _FileList.length)  {
 		print(f, "[Centers]");
 
 		// Load ROI file
+		// -------------
 
 		roiManager("Reset");
 		roiManager("Open",_SurfaceFolder+_ImageName+".zip");
 
 		// For each ROI
-		
+		// ------------
+
 		for (roi = 0; roi < roiManager("count"); roi++) {
 			
 			roiManager("Select",roi);
@@ -111,7 +124,8 @@ while (i < _FileList.length)  {
 			getSelectionCoordinates(_x,_y);
 
 			// Write the coordinates according to ROI type
-			
+			// -------------------------------------------
+
 			if (Roi.getType=="point") {
 				
 				print(f, d2s(roi,0) + ",1," + d2s(_x[0],0) + "," + d2s(_y[0],0) + "," + d2s(_z,0) + ",0,0");
@@ -137,6 +151,7 @@ while (i < _FileList.length)  {
 		File.close(f);
 		
 		// Image processing
+		// ----------------
 
 		run("Select None");
 		run("Median 3D...", "x=3 y=3 z=3");
@@ -149,7 +164,8 @@ while (i < _FileList.length)  {
 		}
 
 		// Save resulting image
-		
+		// --------------------
+
 		setSlice(0.5*nSlices);
 		resetMinAndMax();
 		saveAs("Tiff",_RootFolder+"MitoGraph/"+_ImageName+".tif");
@@ -162,3 +178,6 @@ while (i < _FileList.length)  {
 }
 
 setBatchMode(false);
+
+// End
+// ---

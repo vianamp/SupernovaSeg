@@ -12,8 +12,13 @@ int SaveImageData(const char FileName[], vtkImageData *Image) {
 
 int RunSuperNova(_database *DataBase) {
 
+    #ifdef DEBUG
+        printf("SuperNova Segmentation V1.0 [DEBUG mode]\n");
+        printf("File name: %s\n",DataBase->GetFullSurfaceName().c_str());
+    #endif
+
     vtkSmartPointer<vtkTIFFReader> TIFFReader = vtkSmartPointer<vtkTIFFReader>::New();
-    TIFFReader -> SetOrientationType(1);
+    TIFFReader -> SetOrientationType(TIFF_ORIENTATION_READER);
     TIFFReader -> SetFileName(DataBase->GetFullSurfaceName().c_str());
     TIFFReader -> Update();
 
@@ -23,8 +28,6 @@ int RunSuperNova(_database *DataBase) {
     int *Dim = ImageData -> GetDimensions();
 
     #ifdef DEBUG
-        printf("SuperNova Segmentation V1.0 [DEBUG mode]\n");
-        printf("File name: %s\n",DataBase->GetFullSurfaceName().c_str());
         printf("Volume dimensions: %dx%dx%d\n",Dim[0],Dim[1],Dim[2]);
     #endif
 
@@ -46,24 +49,51 @@ int RunSuperNova(_database *DataBase) {
         
         Supernova -> Probe(ImageData);
         
-        if ( tp == 2 ) {
+        if (DataBase->GetR1(id)>20) {
+
             Supernova -> ApplyLimits(DataBase->GetR1(id),false);
-        } else if ( tp == 3 ) {
+
+        } else {
+
             Supernova -> ApplyLimits(DataBase->GetR1(id),true);
+
         }
         
-        Supernova -> Segmentation(id);
+        Supernova -> Segmentation();
 
-        Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage);
-
-        Supernova -> AjustCoordinates(Dim[1],DataBase->GetDxy(),DataBase->GetDz());
+        Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,id);
         
-        Supernova -> Save(DataBase->MakeVTKFileName(id,"-surface").c_str(),id);
+        SaveImageData(DataBase->MakeVTKFileName(id,"-mitovolume").c_str(),ClipImage);
 
-        SaveImageData(DataBase->MakeVTKFileName(id,"-volume").c_str(),ClipImage);
+        Supernova -> ScalePolyData(DataBase->GetDxy(),DataBase->GetDz());
+
+        Supernova -> Save(DataBase->MakeVTKFileName(id,"-cellsurface").c_str(),id);
 
     }
 
+    return EXIT_SUCCESS;
+}
+
+int ScanFolderForThisExtension(const char _root[], const char ext[], std::vector<std::string> *List) {
+    DIR *dir;
+    int ext_p;
+    struct dirent *ent;
+    std::string _dir_name;
+    if ((dir = opendir (_root)) != NULL) {
+      while ((ent = readdir (dir)) != NULL) {
+        _dir_name = std::string(ent->d_name);
+        ext_p = (int)_dir_name.find(std::string(ext));
+        if (ext_p > 0) {
+            #ifdef DEBUG
+                printf("File found: %s\n",_dir_name.c_str());
+            #endif
+            List -> push_back(std::string(_root)+_dir_name.substr(0,ext_p));
+        }
+      }
+      closedir (dir);
+    } else {
+      return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 
@@ -73,37 +103,22 @@ int RunSuperNova(_database *DataBase) {
 
 int main(int argc, char *argv[]) {     
     
-    _database *DataBase = new _database;
-
-    int i;
-    bool _pts = 0;
-    char _prefix[64];
-    char _impath[128];
-    sprintf(_impath,"");
-
-    for (i = 0; i < argc; i++) {
+    std::string root;
+    for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i],"-path")) {
-            sprintf(_impath,"%s",argv[i+1]);
+            root = std::string(argv[i+1]);
         }
     }
 
-    char _cmd[256];
-    sprintf(_cmd,"ls %s*.centers > %ssupernovaseg.files",_impath,_impath);
-    system(_cmd);
+    std::vector<std::string> Files;
+    ScanFolderForThisExtension(root.c_str(),".centers",&Files);
 
-    char _tifffilename[256];
-    char _tifflistpath[128];
-    sprintf(_tifflistpath,"%ssupernovaseg.files",_impath);
-    FILE *f = fopen(_tifflistpath,"r");
-
-    while (fgets(_tifffilename,256, f) != NULL) {
-        _tifffilename[strcspn(_tifffilename, "\n" )] = '\0';
-        DataBase -> PopulateFromFile(_tifffilename);
+    _database *DataBase = new _database;
+    for (int i = 0; i < Files.size(); i++) {
+        DataBase -> PopulateFromFile(Files[i]+".centers");
         RunSuperNova(DataBase);
-        return 0;
     }
 
-    fclose(f);
 
     return EXIT_SUCCESS;
 }
