@@ -11,7 +11,7 @@ class _database {
         std::string _Prefix;
         std::string _RootFolder;
         std::string _MitoFolder;
-        std::string _SurfaceFolder;
+        std::string _CellFolder;
         std::vector<double> _r1, _r2;
         std::vector<int> _id, _x, _y, _z, _type;
 
@@ -54,7 +54,7 @@ class _database {
 
         void Print();
         
-        std::string GetFullSurfaceName();
+        std::string GetFullCellName();
 
         std::string GetFullMitoName();
 

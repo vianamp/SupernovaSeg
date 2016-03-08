@@ -44,7 +44,7 @@
 
 _RootFolder = getDirectory("Choose a Directory");
 
-_SurfaceFolder = _RootFolder + "surface/";
+_CellFolder = _RootFolder + "cell/";
 
 _MitoFolder = _RootFolder + "mito/";
 
@@ -60,7 +60,7 @@ File.makeDirectory(_RootFolder+"/MitoGraph");
 // List of files "surface"
 // -----------------------
 
-_FileList = getFileList(_SurfaceFolder);
+_FileList = getFileList(_CellFolder);
 
 // Batch mode on
 // -------------
@@ -84,7 +84,7 @@ while (i < _FileList.length)  {
 		// Load image
 		// ----------
 
-		open(_SurfaceFolder+_ImageName+".tif");
+		open(_CellFolder+_ImageName+".tif");
 
 		// Create coordinates file
 		// -----------------------
@@ -98,8 +98,8 @@ while (i < _FileList.length)  {
 		print(f, _RootFolder+"/MitoGraph/");
 		print(f, "[MitoFolder]");
 		print(f, _MitoFolder);
-		print(f, "[SurfaceFolder]");
-		print(f, _SurfaceFolder);
+		print(f, "[CellFolder]");
+		print(f, _CellFolder);
 		print(f, "[Prefix]");
 		print(f, _ImageName);
 		print(f, "[SpacingXY]");
@@ -112,7 +112,7 @@ while (i < _FileList.length)  {
 		// -------------
 
 		roiManager("Reset");
-		roiManager("Open",_SurfaceFolder+_ImageName+".zip");
+		roiManager("Open",_CellFolder+_ImageName+".zip");
 
 		// For each ROI
 		// ------------

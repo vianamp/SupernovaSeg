@@ -11,9 +11,9 @@
         
         private:    
 
-            double _xo, _yo, _zo;
             int _rmax, _nrays, _freq;
-            vtkPolyData *Rays, *Peaks, *Surface;
+            vtkPolyData *Rays, *Peaks, *Cell;
+            double _xo, _yo, _zo, _scalefactor;
         
         public:
 
@@ -28,7 +28,9 @@
                 _yo = yo;
                 _zo = zo;
             }
-
+            void SetScaleFactor(double _dxy, double _dz) {
+                _scalefactor = _dz/_dxy;
+            }
             int GetNumberOfRays() {
                 return _nrays;
             }

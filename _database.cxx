@@ -5,8 +5,8 @@
             printf("%d\t%d\t%d\t%d\t%d\t%1.2f\t%1.2f\n",_id[i],_type[i],_x[i],_y[i],_z[i],_r1[i],_r2[i]);
     }
     
-    std::string _database::GetFullSurfaceName() {
-        return _SurfaceFolder + _Prefix + ".tif";
+    std::string _database::GetFullCellName() {
+        return _CellFolder + _Prefix + ".tif";
     }
 
     std::string _database::GetFullMitoName() {
@@ -39,10 +39,10 @@
                 this -> _MitoFolder = line;
                 printf("> %s\n",this -> _MitoFolder.c_str());
             }
-            if ( line == "[SurfaceFolder]" ) {
+            if ( line == "[CellFolder]" ) {
                 getline(infile,line);
-                this -> _SurfaceFolder = line;
-                printf("> %s\n",this -> _SurfaceFolder.c_str());
+                this -> _CellFolder = line;
+                printf("> %s\n",this -> _CellFolder.c_str());
             }
             if ( line == "[Prefix]" ) {
                 getline(infile,line);

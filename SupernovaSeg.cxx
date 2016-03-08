@@ -14,12 +14,12 @@ int RunSuperNova(_database *DataBase) {
 
     #ifdef DEBUG
         printf("SuperNova Segmentation V1.0 [DEBUG mode]\n");
-        printf("File name: %s\n",DataBase->GetFullSurfaceName().c_str());
+        printf("File name: %s\n",DataBase->GetFullCellName().c_str());
     #endif
 
     vtkSmartPointer<vtkTIFFReader> TIFFReader = vtkSmartPointer<vtkTIFFReader>::New();
     TIFFReader -> SetOrientationType(TIFF_ORIENTATION_READER);
-    TIFFReader -> SetFileName(DataBase->GetFullSurfaceName().c_str());
+    TIFFReader -> SetFileName(DataBase->GetFullCellName().c_str());
     TIFFReader -> Update();
 
     vtkSmartPointer<vtkImageData> ImageData = TIFFReader -> GetOutput();
@@ -44,6 +44,8 @@ int RunSuperNova(_database *DataBase) {
         _Supernova *Supernova = new _Supernova();
         
         Supernova -> SetCenter(xo,yo,zo);
+
+        Supernova -> SetScaleFactor(DataBase->GetDxy(),DataBase->GetDz());
         
         Supernova -> Initialize();
         

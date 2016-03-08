@@ -89,14 +89,14 @@
         vtkSmartPointer<vtkDataArray> Scalars = Rays -> GetPointData() -> GetScalars();
         for (r = 0; r < _nrays; r++) {
             GetXYZFromRay(r,&x,&y,&z);
-            w = r1*(1.0 - 2.0/3.0*fabs(z/sqrt(x*x+y*y+z*z)));
+            w = r1 / ( fabs(z/sqrt(x*x+y*y+z*z)) * (_scalefactor-1) + 1 );
             for (i = 0; i < _rmax; i++) {
                 id = i + r * _rmax;
                 if (force) {
                     if (i == (int)w) Scalars -> SetTuple1(id,65535);
                 } else {
                     v = Scalars -> GetTuple1(id);
-                    v = (i<w)?v:0.0;
+                    v = (i<w)?v:v/0.0;
                     Scalars -> SetTuple1(id,v);
                 }
             }
@@ -107,7 +107,7 @@
 
         vtkSmartPointer<vtkPolyDataWriter> SurfaceWriter = vtkSmartPointer<vtkPolyDataWriter>::New();
         SurfaceWriter -> SetFileTypeToBinary();
-        SurfaceWriter -> SetInputData(Surface);
+        SurfaceWriter -> SetInputData(Cell);
         SurfaceWriter -> SetFileName(FileName);
         SurfaceWriter -> Write();
 
@@ -264,16 +264,16 @@
         ContourFilter -> SetValue(0, 0.0);
         ContourFilter -> Update();
 
-        Surface = vtkPolyData::New();
-        Surface -> DeepCopy(ContourFilter->GetOutput());
+        Cell = vtkPolyData::New();
+        Cell -> DeepCopy(ContourFilter->GetOutput());
 
         #ifdef DEBUG
             Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
             Writer -> SetFileTypeToBinary();
-            Writer -> SetInputData(Surface);
-            Writer -> SetFileName("Surface.vtk");
+            Writer -> SetInputData(Cell);
+            Writer -> SetFileName("Cell.vtk");
             Writer -> Write();
-            printf("Surface saved in Supernove folder under the name Surface.vtk!\n");
+            printf("Cell saved in Supernove folder under the name Cell.vtk!\n");
         #endif
 
     }
@@ -415,7 +415,7 @@
 
         vtkSmartPointer<vtkSelectEnclosedPoints> Filter = vtkSmartPointer<vtkSelectEnclosedPoints>::New();
         Filter -> SetInputData(Image);
-        Filter -> SetSurfaceData(Surface);
+        Filter -> SetSurfaceData(Cell);
         Filter -> Update();
 
         double range[2];
@@ -459,16 +459,16 @@
         ContourFilter -> SetValue(0,threshold);
         ContourFilter -> Update();
 
-        Surface -> DeepCopy(ContourFilter->GetOutput());
+        Cell -> DeepCopy(ContourFilter->GetOutput());
 
         vtkSmartPointer<vtkIntArray> ID = vtkSmartPointer<vtkIntArray>::New();
         ID -> SetName("ID");
-        ID -> SetNumberOfTuples(Surface->GetNumberOfPoints());
+        ID -> SetNumberOfTuples(Cell->GetNumberOfPoints());
         ID -> SetNumberOfComponents(1);
         ID -> FillComponent(0,_id);
 
-        Surface -> GetPointData() -> SetScalars(ID);
-        Surface -> Modified();
+        Cell -> GetPointData() -> SetScalars(ID);
+        Cell -> Modified();
 
         vtkSmartPointer<vtkTIFFReader> Reader = vtkSmartPointer<vtkTIFFReader>::New();
         Reader -> SetFileName(MitoFileName);
@@ -527,38 +527,38 @@
 
     void _Supernova::AjustCoordinates(int Ly, double _dxy, double _dz) {
         vtkSmartPointer<vtkCleanPolyData> Clean = vtkSmartPointer<vtkCleanPolyData>::New();
-        Clean -> SetInputData(Surface);
+        Clean -> SetInputData(Cell);
         Clean -> Update();
 
-        Surface -> DeepCopy(Clean -> GetOutput());
+        Cell -> DeepCopy(Clean -> GetOutput());
 
         vtkIdType i;
         double r[3], x, y, z;
         double xcm, ycm, zcm;
         xcm = ycm = zcm = 0.0;
-        for (i = 0; i < Surface -> GetNumberOfPoints(); i++) {
-            Surface -> GetPoint(i,r);
+        for (i = 0; i < Cell -> GetNumberOfPoints(); i++) {
+            Cell -> GetPoint(i,r);
             xcm += r[0];
             ycm += r[1];
             zcm += r[2];
         }
-        xcm /= Surface -> GetNumberOfPoints();
-        ycm /= Surface -> GetNumberOfPoints();
-        zcm /= Surface -> GetNumberOfPoints();
+        xcm /= Cell -> GetNumberOfPoints();
+        ycm /= Cell -> GetNumberOfPoints();
+        zcm /= Cell -> GetNumberOfPoints();
 
         printf("%1.3f\t%1.3f\t%1.3f\n",xcm,ycm,zcm);
 
-        for (i = 0; i < Surface -> GetNumberOfPoints(); i++) {
-            Surface -> GetPoint(i,r);
+        for (i = 0; i < Cell -> GetNumberOfPoints(); i++) {
+            Cell -> GetPoint(i,r);
             x = 1.4 * _dxy * ( r[0] - xcm ) + _dxy * xcm;
             y = 1.4 * _dxy * ( r[1] - ycm ) + _dxy * ycm;
             z = 1.4 * _dz  * ( r[2] - zcm ) + _dz  * zcm;
-            Surface -> GetPoints() -> SetPoint(i,x,_dxy*Ly-y,z);
+            Cell -> GetPoints() -> SetPoint(i,x,_dxy*Ly-y,z);
         }
-        Surface -> Modified();
+        Cell -> Modified();
 
         vtkSmartPointer<vtkFillHolesFilter> Holes = vtkSmartPointer<vtkFillHolesFilter>::New();
-        Holes -> SetInputData(Surface);
+        Holes -> SetInputData(Cell);
         Holes -> SetHoleSize(100.0);
         Holes -> Update();
 
@@ -566,7 +566,7 @@
         if (Holes->GetOutput()->GetNumberOfCells() > 0) {
             Smooth -> SetInputData(Holes->GetOutput());
         } else {
-            Smooth -> SetInputData(Surface);
+            Smooth -> SetInputData(Cell);
         }
         Smooth -> SetNumberOfIterations(20);
         Smooth -> SetRelaxationFactor(0.1);
@@ -579,8 +579,8 @@
         Normals -> AutoOrientNormalsOn();
         Normals -> Update();
 
-        Surface -> DeepCopy(Normals->GetOutput());
-        Surface -> Modified();
+        Cell -> DeepCopy(Normals->GetOutput());
+        Cell -> Modified();
     }
 
     void _Supernova::ScalePolyData(double _dxy, double _dz) {
@@ -597,7 +597,7 @@
             r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
             P -> SetPoint(i,r);
         }
-        P = Surface -> GetPoints();
+        P = Cell -> GetPoints();
         for (vtkIdType i = 0; i < P->GetNumberOfPoints(); i++) {
             P -> GetPoint(i,r);
             r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
