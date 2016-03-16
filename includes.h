@@ -32,6 +32,8 @@
 #include <vtkInformationVector.h>
 #include <vtkPolyDataNormals.h>
 #include <vtkGeometryFilter.h>
+#include <vtkTransform.h>
+#include <vtkTransformFilter.h>
 #include <vtkCleanPolyData.h>
 #include <vtkFillHolesFilter.h>
 #include <vtkUnsignedCharArray.h>

@@ -21,8 +21,8 @@
 //  |              file2.tif
 //  |              ...
 //  |
-//  |---- surface  (target of this routine and
-//  |      |        contains images of surface signal + ROIs)
+//  |---- cell  (target of this routine and
+//  |      |     contains images of surface signal + ROIs)
 //  |      |
 //  |      |------ file1.tif
 //  |              file2.tif

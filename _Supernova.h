@@ -12,9 +12,9 @@
         private:    
 
             int _rmax, _nrays, _freq;
-            vtkPolyData *Rays, *Peaks, *Cell;
             double _xo, _yo, _zo, _scalefactor;
-        
+            vtkPolyData *Rays, *Peaks, *Cell, *CellOuter;
+
         public:
 
             int GetMaximumRadius() {
@@ -56,7 +56,9 @@
 
             void Probe(vtkImageData *Image);
 
-            void Save(const char FileName[], const int _id);
+            void Save(const char FileName[], const char FileName2[]);
+
+            void SaveRays(const char FileName[]);
 
             void ApplyLimits(const double r1, const bool force);
 

@@ -57,19 +57,25 @@ int RunSuperNova(_database *DataBase) {
 
         } else {
 
+            #ifdef DEBUG
+                printf("Small cell detected. Assuming spherical shape...\n");
+            #endif
+
             Supernova -> ApplyLimits(DataBase->GetR1(id),true);
 
         }
         
         Supernova -> Segmentation();
 
-        Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,id);
+        Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,DataBase->GetId(id));
         
-        SaveImageData(DataBase->MakeVTKFileName(id,"-mitovolume").c_str(),ClipImage);
+        SaveImageData(DataBase->MakeVTKFileName(DataBase->GetId(id),"-mitovolume").c_str(),ClipImage);
 
         Supernova -> ScalePolyData(DataBase->GetDxy(),DataBase->GetDz());
 
-        Supernova -> Save(DataBase->MakeVTKFileName(id,"-cellsurface").c_str(),id);
+        Supernova -> Save(DataBase->MakeVTKFileName(DataBase->GetId(id),"-cellsurface").c_str(),DataBase->MakeVTKFileName(DataBase->GetId(id),"-celloutersurface").c_str());
+
+        if (DataBase->CheckMode()) break;
 
     }
 
@@ -106,21 +112,29 @@ int ScanFolderForThisExtension(const char _root[], const char ext[], std::vector
 int main(int argc, char *argv[]) {     
     
     std::string root;
+    _database *DataBase = new _database;
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i],"-path")) {
             root = std::string(argv[i+1]);
+        }
+        if (!strcmp(argv[i],"-check")) {
+            DataBase->SetCheckModeOn();
         }
     }
 
     std::vector<std::string> Files;
     ScanFolderForThisExtension(root.c_str(),".centers",&Files);
 
-    _database *DataBase = new _database;
     for (int i = 0; i < Files.size(); i++) {
         DataBase -> PopulateFromFile(Files[i]+".centers");
         RunSuperNova(DataBase);
+        if ( DataBase->CheckMode() ) {
+            #ifdef DEBUG
+                printf("Running check mode...\n");
+            #endif
+            break;
+        }
     }
-
 
     return EXIT_SUCCESS;
 }

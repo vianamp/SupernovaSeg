@@ -7,6 +7,7 @@ class _database {
     
     private:
 
+        bool _checkmode;
         double _dxy, _dz;
         std::string _Prefix;
         std::string _RootFolder;
@@ -63,6 +64,10 @@ class _database {
         int GetNumberOfCenters();
 
         void PopulateFromFile(const std::string CentersFileName);
+
+        void SetCheckModeOn() { _checkmode = 1; }
+
+        bool CheckMode() { return _checkmode; }
 
 };
 

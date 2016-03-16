@@ -3,10 +3,16 @@
     int ssdx_sort[26] = { 0,-1, 0, 1, 0, 0,-1, 0, 1, 0,-1, 1, 1,-1,-1, 0, 1, 0, -1, 1, 1,-1,-1, 1, 1,-1};
     int ssdy_sort[26] = { 0, 0,-1, 0, 1, 0, 0,-1, 0, 1,-1,-1, 1, 1, 0,-1, 0, 1, -1,-1, 1, 1,-1,-1, 1, 1};
     int ssdz_sort[26] = {-1, 0, 0, 0, 0, 1,-1,-1,-1,-1, 0, 0, 0, 0, 1, 1, 1, 1, -1,-1,-1,-1, 1, 1, 1, 1};
+    double _PI = 3.141592;
+
+    double FAux(double a, double t) {
+        return -(t/_PI)*exp(-a * (t+_PI));
+    }
 
     void _Supernova::GetXYZFromRay(const int ray, double *x, double *y, double *z) {
-        double t = 2.0 * 3.1415*(1.0*ray)/_nrays;
-        *z = 3.1415 - t;
+        double t = 2.0 * _PI*(1.0*ray)/_nrays - _PI;
+        double alpha = 0.05;
+        *z = (t<=0) ? FAux(alpha,t) : -FAux(alpha,-t);
         *x = cos(_freq*t);
         *y = sin(_freq*t);
     }
@@ -65,8 +71,6 @@
             if ( (i >= 0 && i < Dim[0]) && (j >= 0 && j < Dim[1]) && (k >= 0 && k < Dim[2]) ) {
                 v = Image -> GetScalarComponentAsDouble(i,j,k,0);
             }
-            if (k<5) v = 0; // THIS LINE IS CRITICAL FOR GOOD CELL SHAPE IN Z
-                            // MIGHT HAVE TO DO A AUTOMATIC DETECTION OF 5
             Intensities -> SetTuple1(id,v);
         }
 
@@ -103,7 +107,7 @@
         }
     }
 
-    void _Supernova::Save(const char FileName[], const int _id) {
+    void _Supernova::Save(const char FileName[], const char FileName2[]) {
 
         vtkSmartPointer<vtkPolyDataWriter> SurfaceWriter = vtkSmartPointer<vtkPolyDataWriter>::New();
         SurfaceWriter -> SetFileTypeToBinary();
@@ -111,6 +115,20 @@
         SurfaceWriter -> SetFileName(FileName);
         SurfaceWriter -> Write();
 
+        SurfaceWriter = vtkSmartPointer<vtkPolyDataWriter>::New();
+        SurfaceWriter -> SetFileTypeToBinary();
+        SurfaceWriter -> SetInputData(CellOuter);
+        SurfaceWriter -> SetFileName(FileName2);
+        SurfaceWriter -> Write();
+
+    }
+
+    void _Supernova::SaveRays(const char FileName[]) {
+        vtkSmartPointer<vtkPolyDataWriter> WriterR =  vtkSmartPointer<vtkPolyDataWriter>::New();
+        WriterR -> SetFileTypeToBinary();
+        WriterR -> SetInputData(Rays);
+        WriterR -> SetFileName(FileName);
+        WriterR -> Write();
     }
 
     void _Supernova::Segmentation() {
@@ -227,18 +245,33 @@
 
         vtkSmartPointer<vtkPoints> Points = vtkSmartPointer<vtkPoints>::New();
 
+        #ifdef DEBUG
+            printf("\tScaling z-coordinate for surface reconstruction...\n");
+        #endif
+
         int p, a, b;
         a = Path.front().second;
         b = Path.back().second;
-        double t, x, y, z, n;
+        double t, x, y, z, n, zcoord, zmax, zmin;
+        zmax = 0.0; zmin = 1E3;
         do {
             m = Path.back().first;
             p = Path.back().second;
             GetXYZFromRay(m,&x,&y,&z);            
             n = sqrt(x*x+y*y+z*z);
-            Points -> InsertNextPoint(_xo + p * (x / n),_yo + p * (y / n),_zo + p * (z / n));
+            zcoord = _scalefactor*(_zo + p * (z / n));
+            zmax = (zcoord>zmax)?zcoord:zmax;
+            zmin = (zcoord<zmin)?zcoord:zmin;
+            Points -> InsertNextPoint(_xo + p * (x / n),_yo + p * (y / n),zcoord);
             Path.pop_back();
         } while (Path.size() > 0);
+
+        #ifdef DEBUG
+            printf("Z = [%1.3f,%1.3f]\n",zmin,zmax);
+        #endif
+
+        Points -> InsertNextPoint(_xo,_yo,zmin);
+        Points -> InsertNextPoint(_xo,_yo,zmax);
 
         Peaks = vtkPolyData::New();
         Peaks -> SetPoints(Points);
@@ -255,17 +288,31 @@
         #endif
 
         vtkSmartPointer<vtkSurfaceReconstructionFilter> PoissonRecFilter = vtkSmartPointer<vtkSurfaceReconstructionFilter>::New();
-        PoissonRecFilter -> SetNeighborhoodSize(200);
+        PoissonRecFilter -> SetNeighborhoodSize(100);
+        PoissonRecFilter -> SetSampleSpacing(sqrt(10));
         PoissonRecFilter -> SetInputData(Peaks);
         PoissonRecFilter -> Update();
 
         vtkSmartPointer<vtkContourFilter> ContourFilter = vtkSmartPointer<vtkContourFilter>::New();
         ContourFilter -> SetInputConnection(PoissonRecFilter->GetOutputPort());
+        ContourFilter -> ComputeNormalsOn();
         ContourFilter -> SetValue(0, 0.0);
         ContourFilter -> Update();
 
         Cell = vtkPolyData::New();
         Cell -> DeepCopy(ContourFilter->GetOutput());
+
+        #ifdef DEBUG
+            printf("\tScaling z-coordinate back...\n");
+        #endif
+
+        double r[3];
+        vtkIdType id;
+        for (id = Cell->GetNumberOfPoints(); id--;) {
+            Cell -> GetPoint(id,r);
+            Cell -> GetPoints() -> SetPoint(id,r[0],r[1],r[2]/_scalefactor);
+        }
+        Cell -> Modified();
 
         #ifdef DEBUG
             Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
@@ -445,6 +492,10 @@
         vtkSmartPointer<vtkImageData> SmoothImage = vtkSmartPointer<vtkImageData>::New();
         SmoothImage -> DeepCopy(Gauss->GetOutput());
 
+        #ifdef DEBUG
+            printf("Capping smooth image...\n");
+        #endif
+
         int i, j, *Dim = BinaryImage -> GetDimensions();
         for (i = 0; i < Dim[0]; i++) {
             for (j = 0; j < Dim[1]; j++) {
@@ -453,13 +504,29 @@
             }
         }
 
-        double threshold = 0.5*65535;
+        #ifdef DEBUG
+            printf("Saving smooth image...\n");
+            vtkSmartPointer<vtkStructuredPointsWriter> Writer = vtkSmartPointer<vtkStructuredPointsWriter>::New();
+            Writer -> SetInputData(SmoothImage);
+            Writer -> SetFileName("Smooth.vtk");
+            Writer -> Update();
+        #endif
+
+
+        double threshold = 10000;//0.5*65535;
         vtkSmartPointer<vtkContourFilter> ContourFilter = vtkSmartPointer<vtkContourFilter>::New();
         ContourFilter -> SetInputData(SmoothImage);
         ContourFilter -> SetValue(0,threshold);
         ContourFilter -> Update();
 
         Cell -> DeepCopy(ContourFilter->GetOutput());
+
+        ContourFilter -> SetInputData(SmoothImage);
+        ContourFilter -> SetValue(0,0.05*65535);
+        ContourFilter -> Update();
+
+        CellOuter = vtkPolyData::New();
+        CellOuter -> DeepCopy(ContourFilter->GetOutput());
 
         vtkSmartPointer<vtkIntArray> ID = vtkSmartPointer<vtkIntArray>::New();
         ID -> SetName("ID");
@@ -469,6 +536,10 @@
 
         Cell -> GetPointData() -> SetScalars(ID);
         Cell -> Modified();
+
+        #ifdef DEBUG
+            printf("Loading mitochondrial image...\n");
+        #endif
 
         vtkSmartPointer<vtkTIFFReader> Reader = vtkSmartPointer<vtkTIFFReader>::New();
         Reader -> SetFileName(MitoFileName);
@@ -597,10 +668,24 @@
             r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
             P -> SetPoint(i,r);
         }
-        P = Cell -> GetPoints();
-        for (vtkIdType i = 0; i < P->GetNumberOfPoints(); i++) {
-            P -> GetPoint(i,r);
-            r[0] *= _dxy; r[1] *= _dxy; r[2] *= _dz;
-            P -> SetPoint(i,r);
-        }
+
+        vtkSmartPointer<vtkTransform> Scale = vtkSmartPointer<vtkTransform>::New();
+        Scale -> Scale(_dxy,_dxy,_dz);
+        Scale -> Update();
+
+        vtkSmartPointer<vtkTransformFilter> TFilter = vtkSmartPointer<vtkTransformFilter>::New();
+        TFilter -> SetTransform(Scale);
+        TFilter -> SetInputData(Cell);
+        TFilter -> Update();
+
+        Cell -> DeepCopy(TFilter->GetOutput());
+
+        TFilter = vtkSmartPointer<vtkTransformFilter>::New();
+        TFilter -> SetTransform(Scale);
+        TFilter -> SetInputData(CellOuter);
+        TFilter -> Update();
+
+        CellOuter -> DeepCopy(TFilter->GetOutput());
+
+
     }
