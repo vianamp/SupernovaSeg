@@ -89,18 +89,20 @@
 
     void _Supernova::ApplyLimits(const double r1, bool force) {
         vtkIdType r, i, id;
-        double v, x, y, z, w;
+        double v, x, y, z, w, fr, gr;
         vtkSmartPointer<vtkDataArray> Scalars = Rays -> GetPointData() -> GetScalars();
         for (r = 0; r < _nrays; r++) {
             GetXYZFromRay(r,&x,&y,&z);
-            w = r1 / ( fabs(z/sqrt(x*x+y*y+z*z)) * (_scalefactor-1) + 1 );
+            fr = pow(fabs(z/sqrt(x*x+y*y+z*z)),2.0);
+            //gr = cos(0.5*3.141592*(1-fabs(z/sqrt(x*x+y*y+z*z))));
+            w = r1 / ( fr * (_scalefactor-1) + 1 );
             for (i = 0; i < _rmax; i++) {
                 id = i + r * _rmax;
                 if (force) {
                     if (i == (int)w) Scalars -> SetTuple1(id,65535);
                 } else {
                     v = Scalars -> GetTuple1(id);
-                    v = (i<w)?v:v/0.0;
+                    v = (i<w)?v:0.0;
                     Scalars -> SetTuple1(id,v);
                 }
             }
@@ -236,7 +238,7 @@
             TIFFWriter -> Write();
             printf("Path saved in Supernove folder under the name Path.tif!\n");
         #endif
-return;
+
         vtkSmartPointer<vtkPoints> Points = vtkSmartPointer<vtkPoints>::New();
 
         #ifdef DEBUG
