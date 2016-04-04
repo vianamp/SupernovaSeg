@@ -22,7 +22,7 @@
 //  |              ...
 //  |
 //  |---- cell  (target of this routine and
-//  |      |     contains images of surface signal + ROIs)
+//  |      |     contains images of cel signal + ROIs)
 //  |      |
 //  |      |------ file1.tif
 //  |              file2.tif
@@ -39,7 +39,7 @@
 //
 // ===========================================================
 
-// Should be the folder "surface" as described above
+// Should be the folder "cell" as described above
 // -------------------------------------------------
 
 _RootFolder = getDirectory("Choose a Directory");

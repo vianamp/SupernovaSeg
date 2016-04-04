@@ -111,11 +111,13 @@ int ScanFolderForThisExtension(const char _root[], const char ext[], std::vector
 
 int main(int argc, char *argv[]) {     
     
-    std::string root;
+    std::string Path;
     _database *DataBase = new _database;
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i],"-path")) {
-            root = std::string(argv[i+1]);
+            Path = std::string(argv[i+1]);
+            if (Path.back() != '/')
+                Path = Path + '/';
         }
         if (!strcmp(argv[i],"-check")) {
             DataBase->SetCheckModeOn();
@@ -123,7 +125,7 @@ int main(int argc, char *argv[]) {
     }
 
     std::vector<std::string> Files;
-    ScanFolderForThisExtension(root.c_str(),".centers",&Files);
+    ScanFolderForThisExtension(Path.c_str(),".centers",&Files);
 
     for (int i = 0; i < Files.size(); i++) {
         DataBase -> PopulateFromFile(Files[i]+".centers");

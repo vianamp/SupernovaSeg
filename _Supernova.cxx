@@ -157,10 +157,7 @@
         std::vector<double>::iterator it;
 
         vtkSmartPointer<vtkDoubleArray> Map = vtkSmartPointer<vtkDoubleArray>::New();
-        vtkSmartPointer<vtkUnsignedShortArray> Step = vtkSmartPointer<vtkUnsignedShortArray>::New();
         Map -> DeepCopy(Intensities);
-        Step -> DeepCopy(Intensities);
-        Step -> FillComponent(0,0);
 
         for (i = 1; i < _nrays; i++) {
             for (j = 0; j < _rmax; j++) {
@@ -170,21 +167,22 @@
                     }
                 }
                 it = std::max_element(Prec.begin(),Prec.end());
-                Step -> SetTuple1(j+i*_rmax,(int)std::distance(Prec.begin(),it));
                 Map -> SetTuple1(j+i*_rmax,Intensities->GetTuple1(j+i*_rmax)+(*it));
                 Prec.clear();
             }
         }
 
         Map -> Modified();
-        Step -> Modified();
 
         double v, map_range[2];
         Map -> GetRange(map_range);
         printf("Range = %1.3f / %1.3f\n",map_range[0],map_range[1]);
 
         for (i = 0; i < Intensities->GetNumberOfTuples(); i++) {
-            v = 65535*(Map->GetTuple1(i)-map_range[0])/(map_range[1]-map_range[0]);
+            v = 0;
+            if (Intensities->GetTuple1(i) > 0) {
+                v = 65535*(Map->GetTuple1(i)-map_range[0])/(map_range[1]-map_range[0]);
+            }
             Intensities -> SetTuple1(i,v);
             Map -> SetTuple1(i,v);
         }
@@ -201,37 +199,33 @@
             printf("Map saved in Supernove folder under the name Map.tif!\n");
         #endif
 
-        #ifdef DEBUG
-            Proj -> GetPointData() -> SetScalars(Step);
-            TIFFWriter = vtkSmartPointer<vtkTIFFWriter>::New();
-            TIFFWriter -> SetFileName("Step.tif");
-            TIFFWriter -> SetFileDimensionality(2);
-            TIFFWriter -> SetInputData(Proj);
-            TIFFWriter -> Write();
-            printf("Steps saved in Supernove folder under the name Step.tif!\n");
-        #endif
-
-        int ext = 0;
-        long int jo = 0;
-        i = _nrays - 1;
-        std::vector< std::pair<int,int> > Path;
-        for (j = 0; j < _rmax; j++) {
-            if (Intensities->GetTuple1(j+i*_rmax) == 65535) {
-                ext++;
-                jo += j;
-            }
+        for (j = _rmax; j--;) {
+            if (Intensities->GetTuple1(j+(_nrays-1)*_rmax) == 65535)
+                break;
         }
+    
+        std::vector< std::pair<int,int> > Path;
+        Path.push_back(std::make_pair(_nrays-1,j));
+        
         int delta;
-        jo /= ext;
+        double mapv, mapmax;
         Intensities -> FillComponent(0,0);
-        do {
-            Path.push_back(std::make_pair(i,jo));
-            Intensities -> SetTuple1(jo+i*_rmax,65535);
-            delta = Step -> GetTuple1(jo+i*_rmax) - 1;
-            jo += delta;//(jo+delta>=0) ? delta : 0;
-            i--;
-        } while (i >= 0);
 
+        for (i = _nrays-1; i--;) {
+            mapmax = 0;
+            for (m = -1; m <=1; m++) {
+                if ( (j+m >= 0) && (j+m < _rmax) ) {
+                    mapv = Map -> GetTuple1((j+m)+(i-1)*_rmax);
+                    if (mapv > mapmax) {
+                        delta = m;
+                        mapmax = mapv;
+                    }
+                }
+            }
+            j += delta;
+            Path.push_back(std::make_pair(i,j));            
+            Intensities -> SetTuple1(j+i*_rmax,65535);
+        }
 
         #ifdef DEBUG
             Proj -> GetPointData() -> SetScalars(Intensities);
@@ -242,7 +236,7 @@
             TIFFWriter -> Write();
             printf("Path saved in Supernove folder under the name Path.tif!\n");
         #endif
-
+return;
         vtkSmartPointer<vtkPoints> Points = vtkSmartPointer<vtkPoints>::New();
 
         #ifdef DEBUG
