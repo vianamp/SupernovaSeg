@@ -94,7 +94,6 @@
         for (r = 0; r < _nrays; r++) {
             GetXYZFromRay(r,&x,&y,&z);
             fr = pow(fabs(z/sqrt(x*x+y*y+z*z)),2.0);
-            //gr = cos(0.5*3.141592*(1-fabs(z/sqrt(x*x+y*y+z*z))));
             w = r1 / ( fr * (_scalefactor-1) + 1 );
             for (i = 0; i < _rmax; i++) {
                 id = i + r * _rmax;
@@ -684,4 +683,18 @@
         CellOuter -> DeepCopy(TFilter->GetOutput());
 
 
+    }
+
+    void _Supernova::SaveMassProperties(const char MassFileName[]) {
+
+        FILE *f = fopen(MassFileName,"w");
+        fprintf(f,"volume\tsurface_area\tshape_factor\n");
+
+        vtkSmartPointer<vtkMassProperties> Mass = vtkSmartPointer<vtkMassProperties>::New();
+        Mass -> SetInputData(Cell);
+        Mass -> Update();
+
+        fprintf(f,"%1.3f\t%1.3f\t%1.3f\n",Mass->GetVolume(),Mass->GetSurfaceArea(),Mass->GetNormalizedShapeIndex());
+
+        fclose(f);
     }

@@ -59,7 +59,7 @@ class _database {
 
         std::string GetFullMitoName();
 
-        std::string MakeVTKFileName(int i, std::string Name);
+        std::string MakeGenericFileName(int i, std::string Name, std::string Ext);
 
         int GetNumberOfCenters();
 

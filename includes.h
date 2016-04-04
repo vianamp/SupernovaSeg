@@ -23,6 +23,7 @@
 #include <vtkReverseSense.h>
 #include <vtkVectorText.h>
 #include <vtkExtractVOI.h>
+#include <vtkMassProperties.h>
 #include <vtkInformation.h>
 #include <vtkSphereSource.h>
 #include <vtkSmartPointer.h>

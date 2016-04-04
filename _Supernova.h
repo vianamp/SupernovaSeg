@@ -74,6 +74,8 @@
 
             void GetXYZFromRay(const int ray, double *x, double *y, double *z);
 
+            void SaveMassProperties(const char MassFileName[]);
+
             _Supernova() {
                 _rmax = 55;
                 _freq = 20;

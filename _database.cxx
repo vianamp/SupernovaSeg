@@ -13,8 +13,8 @@
         return _MitoFolder + _Prefix + ".tif";
     }
 
-    std::string _database::MakeVTKFileName(int i, std::string Name) {
-        return _RootFolder + _Prefix + "-" + std::to_string(i) + Name + ".vtk";
+    std::string _database::MakeGenericFileName(int i, std::string Name, std::string Ext) {
+        return _RootFolder + _Prefix + "-" + std::to_string(i) + Name + Ext;
     }
 
     int _database::GetNumberOfCenters() {

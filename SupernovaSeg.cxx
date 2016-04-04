@@ -69,15 +69,15 @@ int RunSuperNova(_database *DataBase) {
 
         Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,DataBase->GetId(id));
         
-        SaveImageData(DataBase->MakeVTKFileName(DataBase->GetId(id),"-mitovolume").c_str(),ClipImage);
+        SaveImageData(DataBase->MakeGenericFileName(DataBase->GetId(id),"-mitovolume",".vtk").c_str(),ClipImage);
 
         Supernova -> ScalePolyData(DataBase->GetDxy(),DataBase->GetDz());
 
-        Supernova -> Save(DataBase->MakeVTKFileName(DataBase->GetId(id),"-cellsurface").c_str(),DataBase->MakeVTKFileName(DataBase->GetId(id),"-celloutersurface").c_str());
+        Supernova -> Save(DataBase->MakeGenericFileName(DataBase->GetId(id),"-cellsurface",".vtk").c_str(),DataBase->MakeGenericFileName(DataBase->GetId(id),"-celloutersurface",".vtk").c_str());
 
-        if (DataBase->CheckMode()) break;
+        Supernova -> SaveMassProperties(DataBase->MakeGenericFileName(DataBase->GetId(id),"",".supernovaseg").c_str());
 
-    }
+    }   
 
     return EXIT_SUCCESS;
 }
