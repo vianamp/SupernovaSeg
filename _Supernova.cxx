@@ -205,12 +205,24 @@
                 break;
         }
     
+        #ifdef DEBUG
+            printf("\tJo = %d\n",j);
+        #endif
+
         std::vector< std::pair<int,int> > Path;
         Path.push_back(std::make_pair(_nrays-1,j));
         
+        #ifdef DEBUG
+            printf("\t\t[1]\n");
+        #endif
+
         int delta;
         double mapv, mapmax;
         Intensities -> FillComponent(0,0);
+
+        #ifdef DEBUG
+            printf("\t\t[2]\n");
+        #endif
 
         for (i = _nrays-1; i--;) {
             mapmax = 0;
@@ -227,6 +239,11 @@
             Path.push_back(std::make_pair(i,j));            
             Intensities -> SetTuple1(j+i*_rmax,65535);
         }
+
+        #ifdef DEBUG
+            printf("\tDone.\n");
+        #endif
+
 
         #ifdef DEBUG
             Proj -> GetPointData() -> SetScalars(Intensities);
