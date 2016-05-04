@@ -238,6 +238,7 @@
             j += delta;
             Path.push_back(std::make_pair(i,j));            
             Intensities -> SetTuple1(j+i*_rmax,65535);
+
         }
 
         #ifdef DEBUG
@@ -271,7 +272,7 @@
             p = Path.back().second;
             GetXYZFromRay(m,&x,&y,&z);            
             n = sqrt(x*x+y*y+z*z);
-            zcoord = _scalefactor*(_zo + p * (z / n));
+            zcoord = (_zo + p * (z / n)) * _scalefactor;
             zmax = (zcoord>zmax)?zcoord:zmax;
             zmin = (zcoord<zmin)?zcoord:zmin;
             Points -> InsertNextPoint(_xo + p * (x / n),_yo + p * (y / n),zcoord);

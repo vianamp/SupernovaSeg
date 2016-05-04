@@ -80,6 +80,7 @@ int RunSuperNova(_database *DataBase) {
     }   
 
     return EXIT_SUCCESS;
+
 }
 
 int ScanFolderForThisExtension(const char _root[], const char ext[], std::vector<std::string> *List) {

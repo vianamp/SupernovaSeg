@@ -48,7 +48,7 @@ _CellFolder = _RootFolder + "cell/";
 
 _MitoFolder = _RootFolder + "mito/";
 
-_dxy = 0.056;
+_dxy = 0.09;
 
 _dz = 0.2;
 

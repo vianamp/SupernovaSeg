@@ -77,9 +77,9 @@
             void SaveMassProperties(const char MassFileName[]);
 
             _Supernova() {
-                _rmax = 55;
-                _freq = 20;
-                _nrays = 1000;
+                _freq = 40;
+                _rmax = 120;
+                _nrays = 5000;
             }
 
             ~_Supernova();
