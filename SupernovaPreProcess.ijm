@@ -48,7 +48,7 @@ _CellFolder = _RootFolder + "cell/";
 
 _MitoFolder = _RootFolder + "mito/";
 
-_dxy = 0.09;
+_dxy = 0.056;
 
 _dz = 0.2;
 
@@ -70,10 +70,10 @@ setBatchMode(true);
 i = 0;
 while (i < _FileList.length)  {
 
-	// Only TIFF files
-	// ---------------
+	// Only TIFF files that contain ROI (as zip files)
+	// -----------------------------------------------
 
-	if ( endsWith(_FileList[i],".tif") ) {
+	if ( endsWith(_FileList[i],".zip") ) {
 
 		// Image name
 		// ----------

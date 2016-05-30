@@ -50,32 +50,40 @@ int RunSuperNova(_database *DataBase) {
         Supernova -> Initialize();
         
         Supernova -> Probe(ImageData);
-        
-        if (DataBase->GetR1(id)>20) {
 
-            Supernova -> ApplyLimits(DataBase->GetR1(id),false);
+        // if (DataBase->GetR1(id)>20) {
+
+        //     Supernova -> ApplyLimits(DataBase->GetR1(id),false);
+
+        // } else {
+
+        //     #ifdef DEBUG
+        //         printf("Small cell detected. Assuming spherical shape...\n");
+        //     #endif
+
+        //     Supernova -> ApplyLimits(DataBase->GetR1(id),true);
+
+        // }
+
+        Supernova -> Segmentation2(DataBase->GetR1(id));
+
+        if (DataBase->CheckMode()) {
+         
+            Supernova -> SaveCell(DataBase->MakeGenericFileName(DataBase->GetId(id),"-test-surface",".vtk").c_str());
 
         } else {
 
-            #ifdef DEBUG
-                printf("Small cell detected. Assuming spherical shape...\n");
-            #endif
+            Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,DataBase->GetId(id));
+            
+            SaveImageData(DataBase->MakeGenericFileName(DataBase->GetId(id),"-mitovolume",".vtk").c_str(),ClipImage);
 
-            Supernova -> ApplyLimits(DataBase->GetR1(id),true);
+            //Supernova -> ScalePolyData(DataBase->GetDxy(),DataBase->GetDz());
+
+            Supernova -> Save(DataBase->MakeGenericFileName(DataBase->GetId(id),"-cellsurface",".vtk").c_str(),DataBase->MakeGenericFileName(DataBase->GetId(id),"-celloutersurface",".vtk").c_str());
+
+            Supernova -> SaveMassProperties(DataBase->MakeGenericFileName(DataBase->GetId(id),"",".supernovaseg").c_str());
 
         }
-        
-        Supernova -> Segmentation();
-
-        Supernova -> ClipImageData(DataBase->GetFullMitoName().c_str(),ImageData,ClipImage,DataBase->GetId(id));
-        
-        SaveImageData(DataBase->MakeGenericFileName(DataBase->GetId(id),"-mitovolume",".vtk").c_str(),ClipImage);
-
-        Supernova -> ScalePolyData(DataBase->GetDxy(),DataBase->GetDz());
-
-        Supernova -> Save(DataBase->MakeGenericFileName(DataBase->GetId(id),"-cellsurface",".vtk").c_str(),DataBase->MakeGenericFileName(DataBase->GetId(id),"-celloutersurface",".vtk").c_str());
-
-        Supernova -> SaveMassProperties(DataBase->MakeGenericFileName(DataBase->GetId(id),"",".supernovaseg").c_str());
 
     }   
 
@@ -131,12 +139,6 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < Files.size(); i++) {
         DataBase -> PopulateFromFile(Files[i]+".centers");
         RunSuperNova(DataBase);
-        if ( DataBase->CheckMode() ) {
-            #ifdef DEBUG
-                printf("Running check mode...\n");
-            #endif
-            break;
-        }
     }
 
     return EXIT_SUCCESS;

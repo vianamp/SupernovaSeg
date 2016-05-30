@@ -10,11 +10,16 @@
     }
 
     void _Supernova::GetXYZFromRay(const int ray, double *x, double *y, double *z) {
-        double t = 2.0 * _PI*(1.0*ray)/_nrays - _PI;
-        double alpha = 0.05;
-        *z = (t<=0) ? FAux(alpha,t) : -FAux(alpha,-t);
-        *x = cos(_freq*t);
-        *y = sin(_freq*t);
+        //double t = 2.0 * _PI*(1.0*ray)/_nrays - _PI;
+        //double alpha = 0.01;
+        //*z = (t<=0) ? FAux(alpha,t) : -FAux(alpha,-t);
+        //*x = cos(_freq*t);
+        //*y = sin(_freq*t);
+        double a = 1.0;
+        double n = 50;
+        *z = -a + 2*a*ray/(5000.0-1.0);
+        *x = a*sin(acos((*z)/a))*cos(n*_PI*(*z)/a+1);
+        *y = a*sin(acos((*z)/a))*sin(n*_PI*(*z)/a+1);
     }
 
     void _Supernova::Initialize() {
@@ -132,6 +137,96 @@
         WriterR -> Write();
     }
 
+    void _Supernova::SaveCell(const char FileName[]) {
+        vtkSmartPointer<vtkPolyDataWriter> WriterR =  vtkSmartPointer<vtkPolyDataWriter>::New();
+        WriterR -> SetFileTypeToBinary();
+        WriterR -> SetInputData(Cell);
+        WriterR -> SetFileName(FileName);
+        WriterR -> Write();
+    }
+
+    void _Supernova::Segmentation2(double Radii) {
+
+        int i, j;
+        double w, n, x, y, z;
+        vtkSmartPointer<vtkPoints> Points = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkDataArray> Intensities = Rays -> GetPointData() -> GetScalars();
+
+        FILE *f = fopen("curve.txt","w");
+
+        double threshold = (Radii < 50) ? 4000 : 8000;
+
+        for (i = 0; i < _nrays; i++) {
+            j = -1;
+            do {
+                j++;
+            } while (Intensities->GetTuple1(j+i*_rmax) < threshold && j < _rmax);
+            if (j < _rmax)
+                fprintf(f,"%d\t%1.4f\n",i,(j<Radii)?j:Radii);
+        }
+        fclose(f);
+
+        system("Rscript /Users/viana/Desktop/SupernovaSeg/SmoothCurve.R");
+
+        float jj;
+        f = fopen("curve.txt","r");
+        while (fscanf(f,"%d %f",&i,&jj) != EOF) {
+            Intensities -> SetTuple1(round(jj)+i*_rmax,65535);
+            GetXYZFromRay(i,&x,&y,&z);
+            n = sqrt(x*x+y*y+z*z);
+            Points -> InsertNextPoint(_xo + jj * (x / n),_yo + jj * (y / n),_zo + jj * (z / n));
+        }
+        fclose(f);
+
+        vtkSmartPointer<vtkImageData> Proj = vtkSmartPointer<vtkImageData>::New();
+        Proj -> SetDimensions(_rmax,_nrays,1);
+
+        #ifdef DEBUG
+            Proj -> GetPointData() -> SetScalars(Intensities);
+            vtkSmartPointer<vtkTIFFWriter> TIFFWriter = vtkSmartPointer<vtkTIFFWriter>::New();
+            TIFFWriter -> SetFileName("Path.tif");
+            TIFFWriter -> SetFileDimensionality(2);
+            TIFFWriter -> SetInputData(Proj);
+            TIFFWriter -> Write();
+            printf("Path saved in Supernove folder under the name Path.tif!\n");
+        #endif
+
+        Peaks = vtkPolyData::New();
+        Peaks -> SetPoints(Points);
+
+        vtkSmartPointer<vtkPolyDataWriter> Writer;
+
+        #ifdef DEBUG
+            Writer =  vtkSmartPointer<vtkPolyDataWriter>::New();
+            Writer -> SetFileTypeToBinary();
+            Writer -> SetInputData(Peaks);
+            Writer -> SetFileName("Peaks.vtk");
+            Writer -> Write();
+            printf("Peaks saved in Supernove folder under the name Peaks.vtk!\n");
+        #endif
+
+        vtkSmartPointer<vtkSurfaceReconstructionFilter> PoissonRecFilter = vtkSmartPointer<vtkSurfaceReconstructionFilter>::New();
+        PoissonRecFilter -> SetNeighborhoodSize(500);
+        PoissonRecFilter -> SetSampleSpacing(sqrt(10));
+        PoissonRecFilter -> SetInputData(Peaks);
+        PoissonRecFilter -> Update();
+
+        vtkSmartPointer<vtkContourFilter> ContourFilter = vtkSmartPointer<vtkContourFilter>::New();
+        ContourFilter -> SetInputConnection(PoissonRecFilter->GetOutputPort());
+        ContourFilter -> ComputeNormalsOn();
+        ContourFilter -> SetValue(0, 0.0);
+        ContourFilter -> Update();
+
+        Cell = vtkPolyData::New();
+        Cell -> DeepCopy(ContourFilter->GetOutput());
+
+        #ifdef DEBUG
+            SaveCell("Cell.vtk");
+            printf("Cell saved in Supernove folder under the name Cell.vtk!\n");
+        #endif
+
+    }
+
     void _Supernova::Segmentation() {
 
        #ifdef DEBUG
@@ -197,7 +292,7 @@
             TIFFWriter -> SetFileDimensionality(2);
             TIFFWriter -> SetInputData(Proj);
             TIFFWriter -> Write();
-            printf("Map saved in Supernove folder under the name Map.tif!\n");
+            printf("Map saved in Supernova folder under the name Map.tif!\n");
         #endif
 
         for (j = _rmax; j--;) {

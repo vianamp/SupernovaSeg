@@ -6,7 +6,7 @@
     }
     
     std::string _database::GetFullCellName() {
-        return _CellFolder + _Prefix + ".tif";
+        return _RootFolder + _Prefix + ".tif";
     }
 
     std::string _database::GetFullMitoName() {

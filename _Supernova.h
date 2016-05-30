@@ -60,9 +60,13 @@
 
             void SaveRays(const char FileName[]);
 
+            void SaveCell(const char FileName[]);
+
             void ApplyLimits(const double r1, const bool force);
 
             void Segmentation();
+
+            void Segmentation2(double Raddii);            
 
             void ClipImageData(const char MitoFileName[], vtkImageData *Image, vtkImageData *ClipImage, const int _id);
 
@@ -78,7 +82,7 @@
 
             _Supernova() {
                 _freq = 40;
-                _rmax = 120;
+                _rmax = 150;
                 _nrays = 5000;
             }
 
